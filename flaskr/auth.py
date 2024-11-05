@@ -5,19 +5,18 @@ from flask import (
 from werkzeug.security import check_password_hash, generate_password_hash
 from flaskr.db import get_database
 
-
 # 创建一个名为auth的蓝图，url_prefix将会被添加到所有和这个蓝图相关的URL前
 # 然后到flaskr/__init__.py()中绑定蓝图到app实例
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 
-"""视图1：注册"""
 @bp.route('/register', methods=('GET', 'POST'))
 # 因为前面创建蓝图的使用用了url_prefix='/auth'，会自动把/auth添加到和这个蓝图有关的URL前面
 # 所以/register不存在，而当用户访问/auth/register时，register视图会返回HTML，其中包含一个让他们填写的表单
 # 当用户提交表单时，会验证他们的输入，然后要么再次显示表单和一个错误消息，要么创建新用户并跳转到登录页面
 # 把/register关联到register视图函数，当用户访问/auth/register时，自动调用register视图函数并使用返回值作为响应
 def register():
+    """视图1：注册"""
     # 如果用户提交了表单，request.method会是POST，视图开始验证输入的数据
     if request.method == 'POST':
         # request.form是一个特殊类型的dict，它映射用户提交的表单键（元素id）到相应的值
@@ -62,9 +61,9 @@ def register():
     return render_template('auth/register.html')
 
 
-"""视图2：登录"""
 @bp.route('/login', methods=('GET', 'POST'))
 def login():
+    """视图2：登录"""
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
@@ -74,12 +73,12 @@ def login():
         # fetchone()从查询中返回一条记录，如果查询没有返回结果，则返回None
         # 另一个效果类似的函数叫fetchall()，返回一个包含所有查询结果的列表
         user = get_database().execute(
-            'SELECT username, password FROM user WHERE username = ?', (username,)
+            'SELECT id, username, password FROM user WHERE username = ?', (username,)
         ).fetchone()
 
         # 如果fetchone()返回None，说明该用户名不在数据库内，所以用户名不正确
         if user is None:
-            error = 'Username错误。'
+            error = 'Username错误，用户不存在。'
         # 注册时用generate_password_hash(password)对密码进行加密
         # check_password_hash(A, B)对用户输入的密码B进行加密，然后和数据库中存储的密码A进行对比
         # 如果匹配就是密码正确
@@ -92,7 +91,7 @@ def login():
                Flask对数据进行安全签名，使其无法被篡改"""
             # 用户id被存储在服务器的session中，在后续请求中，如果用户已经登录，其他视图可以加载session中的信息
             session.clear()
-            session['user_id'] = user['id']
+            session['user_id'] = user['id']  # 向session中添加值
             # 重定向到index视图，这个视图在blog蓝图里面，指向index()视图函数
             return redirect(url_for('index'))
 
@@ -101,33 +100,33 @@ def login():
     return render_template('auth/login.html')
 
 
-"""注册一个函数并让它在每一个视图函数之前运行
-   这样不管请求发到哪一个URL，load_logged_in_user()都会检查用户ID是否存储在session中
-   在session中就是用户处于登录状态，于是从数据库中获取对应用户的数据，存储到g.user上
-   g存在于单个请求的生命周期内，如果没有用户ID不存在，g.user=None"""
 @bp.before_app_request
 def load_logged_in_user():
+    """注册一个函数并让它在每一个视图函数之前运行
+       这样不管请求发到哪一个URL，load_logged_in_user()都会检查用户ID是否存储在session中
+       在session中就是用户处于登录状态，于是从数据库中获取对应用户的数据，存储到g.user上
+       g存在于单个请求的生命周期内，如果没有用户ID不存在，g.user=None"""
     user_id = session.get('user_id')
 
     if user_id is None:
         g.user = None
     else:
         g.user = get_database().execute(
-            'SELECT username, password FROM user WHERE id = ?', (user_id,)
+            'SELECT id, username, password FROM user WHERE id = ?', (user_id,)
         ).fetchone()
 
 
-"""视图3：登出，也就是从session中移除对应的用户ID"""
 @bp.route('/logout')
 def logout():
+    """视图3：登出，服务器给每个会话分配一个session，用户登出那清除session就可以了"""
     session.clear()
     return redirect(url_for('index'))
 
 
-"""无论是浏览、创建、编辑、删除帖子都需要用户处于登录状态，所以使用一个装饰器@functools.wraps(view)
-   将函数login_required(view)变成一个装饰器，为每个使用它的视图检查登录状态"""
-# 这个装饰器会包裹被它修饰的视图函数，检查用户的登录状态，登录了则会调用原视图继续正常运行，否则重定向到登录页面
 def login_required(view):
+    """无论是浏览、创建、编辑、删除帖子都需要用户处于登录状态，所以使用一个装饰器@functools.wraps(view)
+       将函数login_required(view)变成一个装饰器，为每个使用它的视图检查登录状态
+       这个装饰器会包裹被它修饰的视图函数，检查用户的登录状态，登录了则会调用原视图继续正常运行，否则重定向到登录页面"""
     @functools.wraps(view)
     def wrapped_view(**kwargs):
         if g.user is None:
