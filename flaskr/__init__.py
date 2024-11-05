@@ -4,15 +4,22 @@ from flask import Flask
 
 
 def create_app(test_config=None):
-    # 创建Flask类的实例
-    # __name__是当前Python模块的名称，instance_relative_config=True告诉app配置文件的位置相对于实例文件夹
-    app = Flask(__name__, instance_relative_config=True)
+    """创建Flask类的实例，换而言之，这个函数create_app就是个应用工厂"""
+    # __name__是当前Python模块的名称，instance_relative_config=True告诉app配置文件的位置是相对于实例文件夹
+    app = Flask(__name__, instance_relative_config=True, template_folder='../templates')
     # 一些app的默认配置
     app.config.from_mapping(
         # 用于保持数据安全，在开发时写成dev，部署时应该用一个随机值覆盖
         SECRET_KEY='dev',
-        # 保存SQLite数据库文件的路径，"""这里需要改一下，我准备用MySQL数据库的"""
+        # 保存SQLite数据库文件的路径
         DATABASE=os.path.join(app.instance_path, 'flaskr.sqlite'),
+
+        # MySQL数据库配置信息
+        SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://root:C.C.MySQL7@127.0.0.1:3306/Flask',
+        # 是否追踪数据库修改，一般不开启, 会影响性能
+        SQLALCHEMY_TRACK_MODIFICATIONS = False,
+        # # 是否显示底层执行的SQL语句
+        # SQLALCHEMY_ECHO = True
     )
 
     if test_config is None:
@@ -28,11 +35,11 @@ def create_app(test_config=None):
     except OSError:
         pass
 
-    # 装饰器，打开http://127.0.0.1:5000/hello就会自动执行被该装饰器修饰的函数
-    # # 一般这个指向首页
-    # @app.route('/hello')
-    # def hello():
-    #     return 'Hello, World!'
+    """装饰器，打开http://127.0.0.1:5000/hello就会自动执行被该装饰器修饰的函数"""
+    # 一般这个指向首页
+    @app.route('/hello')
+    def hello():
+        return 'Hello, World!'
 
     # 从当前目录下导入文件db，调用函数init_app(app)
     # 因为在db.py中用@click.command('init-db')定义了一个命令行命令init-db
@@ -52,3 +59,6 @@ def create_app(test_config=None):
     app.add_url_rule('/', endpoint='index')
 
     return app
+
+# 该项目在Github上的地址：https://github.com/Meow-Stars/TianCiZhuang.git
+# git@github.com:Meow-Stars/TianCiZhuang.git
